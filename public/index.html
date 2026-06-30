@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tetris Fighters Online</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- SCREEN: SPLASH -->
+  <div id="screen-splash" class="screen active">
+    <div class="splash-inner">
+      <h1 class="logo">🎮 TETRIS<br><span>FIGHTERS</span></h1>
+      <p class="tagline">No sign-up. Just fight.</p>
+      <button class="btn btn-primary" onclick="showScreen('screen-lobby')">PLAY NOW</button>
+    </div>
+  </div>
+
+  <!-- SCREEN: LOBBY -->
+  <div id="screen-lobby" class="screen">
+    <div class="lobby-container">
+      <h2>⚔️ Game Lobby</h2>
+
+      <div class="player-setup">
+        <input id="nickname" type="text" maxlength="16" placeholder="Enter nickname..." />
+        <div class="char-select">
+          <div class="char-option selected" data-char="0" onclick="selectChar(0)">🐱 Miko</div>
+          <div class="char-option" data-char="1" onclick="selectChar(1)">🦊 Kira</div>
+          <div class="char-option" data-char="2" onclick="selectChar(2)">🐼 Zuko</div>
+          <div class="char-option" data-char="3" onclick="selectChar(3)">🐰 Nova</div>
+        </div>
+      </div>
+
+      <div class="lobby-actions">
+        <button class="btn btn-primary" onclick="createRoom()">➕ Create Room</button>
+        <button class="btn btn-secondary" onclick="startCPUGame()">🤖 vs CPU</button>
+      </div>
+
+      <h3>Open Rooms</h3>
+      <div id="room-list"><p class="muted">No open rooms. Create one!</p></div>
+    </div>
+  </div>
+
+  <!-- SCREEN: WAITING ROOM -->
+  <div id="screen-waiting" class="screen">
+    <div class="waiting-inner">
+      <h2>Room: <span id="room-code-display">----</span></h2>
+      <p>Share this code with a friend!</p>
+      <div id="waiting-players"></div>
+      <button class="btn btn-primary" onclick="setReady()">✅ Ready</button>
+      <button class="btn btn-ghost" onclick="leaveRoom()">← Leave</button>
+    </div>
+  </div>
+
+  <!-- SCREEN: GAME -->
+  <div id="screen-game" class="screen">
+    <div class="game-layout">
+
+      <!-- Player Side -->
+      <div class="fighter-panel left">
+        <div id="char-portrait-p1" class="char-portrait"></div>
+        <div id="char-name-p1" class="char-name">YOU</div>
+        <div id="hp-bar-p1" class="hp-bar"><div class="hp-fill" style="width:100%"></div></div>
+        <div class="stat-box">
+          <div>Score<br><span id="score-p1">0</span></div>
+          <div>Lines<br><span id="lines-p1">0</span></div>
+          <div>Level<br><span id="level-p1">1</span></div>
+        </div>
+      </div>
+
+      <!-- Player Board -->
+      <div class="board-wrap">
+        <div class="next-hold">
+          <div><label>HOLD</label><canvas id="canvas-hold" width="80" height="80"></canvas></div>
+          <div><label>NEXT</label><canvas id="canvas-next" width="80" height="160"></canvas></div>
+        </div>
+        <canvas id="canvas-p1" width="300" height="600"></canvas>
+      </div>
+
+      <!-- VS divider -->
+      <div class="vs-divider"><span>VS</span></div>
+
+      <!-- Opponent Board -->
+      <div class="board-wrap">
+        <canvas id="canvas-p2" width="300" height="600"></canvas>
+      </div>
+
+      <!-- Opponent Side -->
+      <div class="fighter-panel right">
+        <div id="char-portrait-p2" class="char-portrait"></div>
+        <div id="char-name-p2" class="char-name">OPPONENT</div>
+        <div id="hp-bar-p2" class="hp-bar"><div class="hp-fill" style="width:100%"></div></div>
+        <div class="stat-box">
+          <div>Score<br><span id="score-p2">0</span></div>
+          <div>Lines<br><span id="lines-p2">0</span></div>
+          <div>Level<br><span id="level-p2">1</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SCREEN: RESULT -->
+  <div id="screen-result" class="screen">
+    <div class="result-inner">
+      <h1 id="result-title">YOU WIN!</h1>
+      <div id="result-char" class="result-char"></div>
+      <button class="btn btn-primary" onclick="showScreen('screen-lobby')">🏠 Back to Lobby</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="game.js"></script>
+  <script src="lobby.js"></script>
+</body>
+</html>
