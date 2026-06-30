@@ -13,7 +13,7 @@
     <div class="splash-inner">
       <h1 class="logo">🎮 TETRIS<br><span>FIGHTERS</span></h1>
       <p class="tagline">No sign-up. Just fight.</p>
-      <button class="btn btn-primary" onclick="showScreen('screen-lobby')">PLAY NOW</button>
+      <button class="btn btn-primary" onclick="enterLobby()">PLAY NOW</button>
     </div>
   </div>
 
@@ -48,7 +48,7 @@
       <h2>Room: <span id="room-code-display">----</span></h2>
       <p>Share this code with a friend!</p>
       <div id="waiting-players"></div>
-      <button class="btn btn-primary" onclick="setReady()">✅ Ready</button>
+      <button id="btn-ready" class="btn btn-primary" onclick="setReady()">✅ Ready</button>
       <button class="btn btn-ghost" onclick="leaveRoom()">← Leave</button>
     </div>
   </div>
@@ -106,7 +106,7 @@
     <div class="result-inner">
       <h1 id="result-title">YOU WIN!</h1>
       <div id="result-char" class="result-char"></div>
-      <button class="btn btn-primary" onclick="showScreen('screen-lobby')">🏠 Back to Lobby</button>
+      <button class="btn btn-primary" onclick="enterLobby()">🏠 Back to Lobby</button>
     </div>
   </div>
 
