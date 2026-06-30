@@ -5,20 +5,19 @@
 
 const COLS = 10, ROWS = 20, BLOCK = 30;
 const COLORS = ['', '#ff6ec7','#7ef4fb','#ffe66d','#56f06e','#ff4f4f','#b57bff','#ff9a3c'];
-const CHARS = ['🐱','🦊','🐼','🐰'];
+const CHARS = ['\uD83D\uDC31','\uD83E\uDD8A','\uD83D\uDC3C','\uD83D\uDC30'];
 const CHAR_NAMES = ['Miko','Kira','Zuko','Nova'];
 
 const PIECES = [
-  [[1,1,1,1]],                         // I
-  [[2,2],[2,2]],                        // O
-  [[0,3,0],[3,3,3]],                    // T
-  [[0,4,4],[4,4,0]],                    // S
-  [[5,5,0],[0,5,5]],                    // Z
-  [[6,0,0],[6,6,6]],                    // J
-  [[0,0,7],[7,7,7]]                     // L
+  [[1,1,1,1]],
+  [[2,2],[2,2]],
+  [[0,3,0],[3,3,3]],
+  [[0,4,4],[4,4,0]],
+  [[5,5,0],[0,5,5]],
+  [[6,0,0],[6,6,6]],
+  [[0,0,7],[7,7,7]]
 ];
 
-// ---- Utility ----
 function rotatePiece(piece) {
   return piece[0].map((_, i) => piece.map(row => row[i]).reverse());
 }
@@ -29,13 +28,11 @@ function randPiece() {
   return JSON.parse(JSON.stringify(PIECES[Math.floor(Math.random() * PIECES.length)]));
 }
 
-// ---- Screen manager ----
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
 
-// ---- Character select ----
 let selectedChar = 0;
 function selectChar(idx) {
   selectedChar = idx;
@@ -43,9 +40,6 @@ function selectChar(idx) {
   document.querySelector(`.char-option[data-char="${idx}"]`).classList.add('selected');
 }
 
-// ============================================================
-// GAME STATE
-// ============================================================
 let game = null;
 
 class TetrisGame {
@@ -118,7 +112,6 @@ class TetrisGame {
     this.loop = requestAnimationFrame(tick);
   }
 
-  // ---- Collision ----
   collides(piece, board, ox, oy) {
     for (let r = 0; r < piece.length; r++)
       for (let c = 0; c < piece[r].length; c++)
@@ -130,7 +123,6 @@ class TetrisGame {
     return false;
   }
 
-  // ---- Movement ----
   move(dir) {
     if (!this.collides(this.current, this.board, this.currentX + dir, this.currentY))
       this.currentX += dir;
@@ -170,7 +162,6 @@ class TetrisGame {
     return gy;
   }
 
-  // ---- Locking & Line Clear ----
   lock() {
     for (let r = 0; r < this.current.length; r++)
       for (let c = 0; c < this.current[r].length; c++)
@@ -280,17 +271,18 @@ class TetrisGame {
     }
   }
 
+  // FIX: emit game_over to server so opponent receives opponent_lost event
   endGame(won) {
     this.over = true;
     this.destroy();
+    if (window.gameSocket) window.gameSocket.emit('game_over');
     setTimeout(() => {
-      document.getElementById('result-title').textContent = won ? '🎉 YOU WIN!' : '💀 YOU LOSE';
+      document.getElementById('result-title').textContent = won ? '\uD83C\uDF89 YOU WIN!' : '\uD83D\uDC80 YOU LOSE';
       document.getElementById('result-char').textContent = CHARS[selectedChar];
       showScreen('screen-result');
     }, 800);
   }
 
-  // ---- CPU AI ----
   cpuBestMove(board, piece) {
     let best = null, bestScore = -Infinity;
     const rotations = [piece, rotatePiece(piece), rotatePiece(rotatePiece(piece)), rotatePiece(rotatePiece(rotatePiece(piece)))];
@@ -349,7 +341,6 @@ class TetrisGame {
       if (!this.collides(cs.current, cs.board, cs.x, cs.y + 1)) {
         cs.y++;
       } else {
-        // lock
         for (let r = 0; r < cs.current.length; r++)
           for (let c = 0; c < cs.current[r].length; c++)
             if (cs.current[r][c] && cs.y + r >= 0) cs.board[cs.y + r][cs.x + c] = cs.current[r][c];
@@ -371,7 +362,6 @@ class TetrisGame {
         cs.next = randPiece();
         cs.x = 3; cs.y = 0;
         if (this.collides(cs.current, cs.board, cs.x, cs.y)) { this.endGame(true); return; }
-        // plan next move
         const best = this.cpuBestMove(cs.board, cs.current);
         if (best) { cs.current = best.rot; cs.x = best.x; }
       }
@@ -391,7 +381,6 @@ class TetrisGame {
     return cleared;
   }
 
-  // ---- Soft drop ----
   update(now) {
     if (this.over) return;
     const interval = this.keys['ArrowDown'] ? Math.min(80, this.dropInterval) : this.dropInterval;
@@ -408,7 +397,6 @@ class TetrisGame {
     this.particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life--; });
   }
 
-  // ---- Draw helpers ----
   drawBlock(ctx, x, y, color, alpha = 1) {
     ctx.globalAlpha = alpha;
     ctx.fillStyle = color;
@@ -420,7 +408,6 @@ class TetrisGame {
 
   drawBoard(ctx, board) {
     ctx.clearRect(0, 0, COLS * BLOCK, ROWS * BLOCK);
-    // grid
     ctx.strokeStyle = 'rgba(255,255,255,0.03)';
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       ctx.strokeRect(c * BLOCK, r * BLOCK, BLOCK, BLOCK);
@@ -451,23 +438,17 @@ class TetrisGame {
   }
 
   draw() {
-    // Player board
     this.drawBoard(this.ctx1, this.board);
-    // Ghost
     this.drawPiece(this.ctx1, this.current, this.currentX, this.ghostY(), 0.25);
-    // Current piece
     this.drawPiece(this.ctx1, this.current, this.currentX, this.currentY);
-    // Particles
     this.particles.forEach(p => {
       this.ctx1.globalAlpha = p.life / 40;
       this.ctx1.fillStyle = p.color;
       this.ctx1.fillRect(p.x, p.y, p.size, p.size);
       this.ctx1.globalAlpha = 1;
     });
-    // Hold/Next
     this.drawMiniPiece(this.ctxHold, this.held, 80);
     this.drawMiniPiece(this.ctxNext, this.next, 80);
-    // Opponent / CPU
     if (this.cpuMode) {
       this.drawBoard(this.ctx2, this.cpuState.board);
       const gy2 = (() => { let y = this.cpuState.y; while (!this.collides(this.cpuState.current, this.cpuState.board, this.cpuState.x, y + 1)) y++; return y; })();
@@ -477,11 +458,9 @@ class TetrisGame {
   }
 }
 
-// ============================================================
-// START GAME
-// ============================================================
+// startGame is called from lobby.js (after showScreen) or directly for CPU
 function startGame(cpuMode = false, p2Char = 1) {
-  showScreen('screen-game');
+  // screen-game must already be visible before we grab canvas contexts
   const c1 = document.getElementById('canvas-p1');
   const c2 = document.getElementById('canvas-p2');
   const ch = document.getElementById('canvas-hold');
@@ -489,7 +468,7 @@ function startGame(cpuMode = false, p2Char = 1) {
   document.getElementById('char-portrait-p1').textContent = CHARS[selectedChar];
   document.getElementById('char-name-p1').textContent = CHAR_NAMES[selectedChar];
   document.getElementById('char-portrait-p2').textContent = CHARS[p2Char];
-  document.getElementById('char-name-p2').textContent = cpuMode ? `CPU – ${CHAR_NAMES[p2Char]}` : CHAR_NAMES[p2Char];
+  document.getElementById('char-name-p2').textContent = cpuMode ? `CPU \u2013 ${CHAR_NAMES[p2Char]}` : CHAR_NAMES[p2Char];
   document.getElementById('score-p1').textContent = '0';
   document.getElementById('lines-p1').textContent = '0';
   document.getElementById('level-p1').textContent = '1';
@@ -504,7 +483,7 @@ function startGame(cpuMode = false, p2Char = 1) {
 }
 
 function startCPUGame() {
-  const nickname = document.getElementById('nickname').value.trim() || 'Player';
   const cpuChar = (selectedChar + 1) % CHARS.length;
-  startGame(true, cpuChar);
+  showScreen('screen-game');
+  requestAnimationFrame(() => startGame(true, cpuChar));
 }
