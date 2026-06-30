@@ -271,7 +271,6 @@ class TetrisGame {
     }
   }
 
-  // FIX: emit game_over to server so opponent receives opponent_lost event
   endGame(won) {
     this.over = true;
     this.destroy();
@@ -458,17 +457,26 @@ class TetrisGame {
   }
 }
 
-// startGame is called from lobby.js (after showScreen) or directly for CPU
-function startGame(cpuMode = false, p2Char = 1) {
-  // screen-game must already be visible before we grab canvas contexts
+// startGame now accepts optional nickname params
+// screen-game must already be visible before calling this
+function startGame(cpuMode = false, p2Char = 1, p1Name = null, p2Name = null) {
   const c1 = document.getElementById('canvas-p1');
   const c2 = document.getElementById('canvas-p2');
   const ch = document.getElementById('canvas-hold');
   const cn = document.getElementById('canvas-next');
+
+  // Use passed nicknames, fall back to lobby input or defaults
+  const lobbyNickname = document.getElementById('nickname').value.trim();
+  const displayP1 = p1Name || lobbyNickname || 'You';
+  const displayP2 = p2Name
+    ? (cpuMode ? `\uD83E\uDD16 ${p2Name}` : p2Name)
+    : (cpuMode ? `\uD83E\uDD16 CPU` : 'Opponent');
+
   document.getElementById('char-portrait-p1').textContent = CHARS[selectedChar];
-  document.getElementById('char-name-p1').textContent = CHAR_NAMES[selectedChar];
+  document.getElementById('char-name-p1').textContent = displayP1;
   document.getElementById('char-portrait-p2').textContent = CHARS[p2Char];
-  document.getElementById('char-name-p2').textContent = cpuMode ? `CPU \u2013 ${CHAR_NAMES[p2Char]}` : CHAR_NAMES[p2Char];
+  document.getElementById('char-name-p2').textContent = displayP2;
+
   document.getElementById('score-p1').textContent = '0';
   document.getElementById('lines-p1').textContent = '0';
   document.getElementById('level-p1').textContent = '1';
@@ -477,6 +485,7 @@ function startGame(cpuMode = false, p2Char = 1) {
   document.getElementById('level-p2').textContent = '1';
   document.querySelector('#hp-bar-p1 .hp-fill').style.width = '100%';
   document.querySelector('#hp-bar-p2 .hp-fill').style.width = '100%';
+
   if (game) game.destroy();
   game = new TetrisGame(c1, c2, ch, cn, cpuMode);
   game.start();
@@ -484,6 +493,8 @@ function startGame(cpuMode = false, p2Char = 1) {
 
 function startCPUGame() {
   const cpuChar = (selectedChar + 1) % CHARS.length;
+  const lobbyNickname = document.getElementById('nickname').value.trim() || 'You';
+  const cpuName = CHAR_NAMES[cpuChar];
   showScreen('screen-game');
-  requestAnimationFrame(() => startGame(true, cpuChar));
+  requestAnimationFrame(() => startGame(true, cpuChar, lobbyNickname, cpuName));
 }

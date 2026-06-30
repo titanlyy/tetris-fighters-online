@@ -7,7 +7,6 @@ let socket = null;
 let currentRoom = null;
 
 // Called from PLAY NOW and Back to Lobby buttons
-// Connects socket FIRST so room list is live before player does anything
 function enterLobby() {
   showScreen('screen-lobby');
   initSocket();
@@ -19,7 +18,6 @@ function initSocket() {
   window.gameSocket = socket;
 
   socket.on('connect', () => {
-    // Request current lobby state as soon as we connect
     socket.emit('get_lobby');
   });
 
@@ -30,7 +28,6 @@ function initSocket() {
     showScreen('screen-waiting');
   });
 
-  // Joiner: switch to waiting screen + show room code on room_update
   socket.on('room_update', ({ roomId, room }) => {
     currentRoom = room;
     const waitingScreen = document.getElementById('screen-waiting');
@@ -41,20 +38,21 @@ function initSocket() {
     renderWaitingPlayers(room);
   });
 
-  // Real-time lobby list — fires whenever any room is created, joined, or closed
   socket.on('lobby_update', (rooms) => {
     renderRoomList(rooms);
   });
 
-  // Show screen first, then init canvas in next animation frame
   socket.on('game_start', (room) => {
     currentRoom = room;
     const myIdx = room.players.findIndex(p => p.id === socket.id);
     const oppIdx = myIdx === 0 ? 1 : 0;
     const oppChar = room.players[oppIdx] ? room.players[oppIdx].character : 1;
+    // Pass real nicknames so battle screen shows them
+    const myNickname = room.players[myIdx] ? room.players[myIdx].nickname : 'You';
+    const oppNickname = room.players[oppIdx] ? room.players[oppIdx].nickname : 'Opponent';
     showScreen('screen-game');
     requestAnimationFrame(() => {
-      startGame(false, oppChar);
+      startGame(false, oppChar, myNickname, oppNickname);
       setupMultiplayerSync();
     });
   });
@@ -76,7 +74,7 @@ function initSocket() {
     if (game && !game.over) {
       game.over = true;
       game.destroy();
-      document.getElementById('result-title').textContent = '🚪 Opponent Left';
+      document.getElementById('result-title').textContent = '\uD83D\uDEAA Opponent Left';
       document.getElementById('result-char').textContent = CHARS[selectedChar];
       showScreen('screen-result');
     }
@@ -125,7 +123,7 @@ function setReady() {
   const btn = document.getElementById('btn-ready');
   if (btn) {
     btn.disabled = true;
-    btn.textContent = '⏳ Waiting...';
+    btn.textContent = '\u23F3 Waiting...';
   }
   socket.emit('player_ready');
 }
@@ -143,7 +141,7 @@ function renderWaitingPlayers(room) {
   el.innerHTML = room.players.map(p => `
     <div class="waiting-player">
       <span>${CHARS[p.character]} ${p.nickname}</span>
-      <span class="ready-badge">${p.ready ? '✅ READY' : '⏳ Waiting'}</span>
+      <span class="ready-badge">${p.ready ? '\u2705 READY' : '\u23F3 Waiting'}</span>
     </div>
   `).join('');
   if (room.players.length < 2) {
@@ -152,7 +150,7 @@ function renderWaitingPlayers(room) {
   const btn = document.getElementById('btn-ready');
   if (btn && room.players.length < 2) {
     btn.disabled = false;
-    btn.textContent = '✅ READY';
+    btn.textContent = '\u2705 READY';
   }
 }
 
@@ -166,7 +164,7 @@ function renderRoomList(rooms) {
     <div class="room-entry">
       <div class="room-info">
         <span class="room-id">${r.id}</span>
-        <span class="room-players">${r.players.map(p => `${CHARS[p.character]} ${p.nickname}`).join(' vs ')} • ${r.slots} slot${r.slots !== 1 ? 's' : ''} open</span>
+        <span class="room-players">${r.players.map(p => `${CHARS[p.character]} ${p.nickname}`).join(' vs ')} \u2022 ${r.slots} slot${r.slots !== 1 ? 's' : ''} open</span>
       </div>
       <button class="btn btn-secondary" onclick="joinRoom('${r.id}')">JOIN</button>
     </div>
