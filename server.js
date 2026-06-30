@@ -17,6 +17,24 @@ app.use(express.static(path.join(__dirname, 'public')));
 // In-memory rooms
 const rooms = {};
 
+// In-memory leaderboard: { nickname -> { wins, losses } }
+const leaderboard = {};
+
+function ensureEntry(nickname) {
+  if (!leaderboard[nickname]) leaderboard[nickname] = { wins: 0, losses: 0 };
+}
+
+function getLeaderboard() {
+  return Object.entries(leaderboard)
+    .map(([nickname, s]) => ({ nickname, wins: s.wins, losses: s.losses }))
+    .sort((a, b) => b.wins - a.wins || a.losses - b.losses)
+    .slice(0, 20);
+}
+
+function broadcastLeaderboard() {
+  io.emit('leaderboard_update', getLeaderboard());
+}
+
 function generateRoomId() {
   return Math.random().toString(36).substring(2, 7).toUpperCase();
 }
@@ -40,6 +58,7 @@ io.on('connection', (socket) => {
 
   socket.on('get_lobby', () => {
     socket.emit('lobby_update', getLobbyList());
+    socket.emit('leaderboard_update', getLeaderboard());
   });
 
   socket.on('create_room', ({ nickname, character }) => {
@@ -65,7 +84,6 @@ io.on('connection', (socket) => {
     socket.join(roomId);
     socket.roomId = roomId;
 
-    // FIX: send roomId with room_update so joiner can display the room code
     io.to(roomId).emit('room_update', { roomId, room });
     broadcastLobby();
   });
@@ -79,7 +97,6 @@ io.on('connection', (socket) => {
 
     io.to(roomId).emit('room_update', { roomId, room });
 
-    // Start game when all players are ready
     if (room.players.length === 2 && room.players.every(p => p.ready)) {
       room.status = 'playing';
       io.to(roomId).emit('game_start', room);
@@ -99,18 +116,38 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('receive_garbage', { lines });
   });
 
-  // FIX: game_over now properly notified to opponent
+  // Loser emits game_over — server records scores and tells opponent they won
   socket.on('game_over', () => {
     const roomId = socket.roomId;
-    if (!roomId) return;
+    if (!roomId || !rooms[roomId]) return;
+    const room = rooms[roomId];
+    if (room.status === 'done') return; // prevent double-fire
+    room.status = 'done';
+
+    // Record win/loss
+    const loser = room.players.find(p => p.id === socket.id);
+    const winner = room.players.find(p => p.id !== socket.id);
+    if (loser) { ensureEntry(loser.nickname); leaderboard[loser.nickname].losses++; }
+    if (winner) { ensureEntry(winner.nickname); leaderboard[winner.nickname].wins++; }
+
+    // Tell winner they won (loser already shows lose screen locally)
     socket.to(roomId).emit('opponent_lost');
-    if (rooms[roomId]) rooms[roomId].status = 'done';
+    broadcastLeaderboard();
   });
 
   socket.on('disconnect', () => {
     console.log('disconnect', socket.id);
     const roomId = socket.roomId;
     if (!roomId || !rooms[roomId]) return;
+    const room = rooms[roomId];
+    // If game was in progress, the remaining player wins by default
+    if (room.status === 'playing') {
+      const winner = room.players.find(p => p.id !== socket.id);
+      const loser = room.players.find(p => p.id === socket.id);
+      if (winner) { ensureEntry(winner.nickname); leaderboard[winner.nickname].wins++; }
+      if (loser) { ensureEntry(loser.nickname); leaderboard[loser.nickname].losses++; }
+      broadcastLeaderboard();
+    }
     socket.to(roomId).emit('opponent_disconnected');
     delete rooms[roomId];
     broadcastLobby();

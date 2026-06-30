@@ -6,7 +6,6 @@
 let socket = null;
 let currentRoom = null;
 
-// Called from PLAY NOW and Back to Lobby buttons
 function enterLobby() {
   showScreen('screen-lobby');
   initSocket();
@@ -42,12 +41,15 @@ function initSocket() {
     renderRoomList(rooms);
   });
 
+  socket.on('leaderboard_update', (entries) => {
+    renderLeaderboard(entries);
+  });
+
   socket.on('game_start', (room) => {
     currentRoom = room;
     const myIdx = room.players.findIndex(p => p.id === socket.id);
     const oppIdx = myIdx === 0 ? 1 : 0;
     const oppChar = room.players[oppIdx] ? room.players[oppIdx].character : 1;
-    // Pass real nicknames so battle screen shows them
     const myNickname = room.players[myIdx] ? room.players[myIdx].nickname : 'You';
     const oppNickname = room.players[oppIdx] ? room.players[oppIdx].nickname : 'Opponent';
     showScreen('screen-game');
@@ -66,8 +68,9 @@ function initSocket() {
     if (game && !game.over) game.receiveGarbage(lines);
   });
 
+  // Opponent lost = we won — call endGame(true, true) so it skips re-emitting game_over
   socket.on('opponent_lost', () => {
-    if (game && !game.over) game.endGame(true);
+    if (game && !game.over) game.endGame(true, true);
   });
 
   socket.on('opponent_disconnected', () => {
@@ -167,6 +170,24 @@ function renderRoomList(rooms) {
         <span class="room-players">${r.players.map(p => `${CHARS[p.character]} ${p.nickname}`).join(' vs ')} \u2022 ${r.slots} slot${r.slots !== 1 ? 's' : ''} open</span>
       </div>
       <button class="btn btn-secondary" onclick="joinRoom('${r.id}')">JOIN</button>
+    </div>
+  `).join('');
+}
+
+function renderLeaderboard(entries) {
+  const el = document.getElementById('leaderboard-list');
+  if (!el) return;
+  if (!entries || entries.length === 0) {
+    el.innerHTML = '<p class="muted">No games played yet.</p>';
+    return;
+  }
+  const medals = ['\uD83E\uDD47','\uD83E\uDD48','\uD83E\uDD49'];
+  el.innerHTML = entries.map((e, i) => `
+    <div class="lb-row">
+      <span class="lb-rank">${medals[i] || i + 1}</span>
+      <span class="lb-name">${e.nickname}</span>
+      <span class="lb-wins">\u2694\uFE0F ${e.wins}W</span>
+      <span class="lb-losses">${e.losses}L</span>
     </div>
   `).join('');
 }

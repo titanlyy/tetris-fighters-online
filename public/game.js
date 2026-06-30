@@ -271,10 +271,16 @@ class TetrisGame {
     }
   }
 
-  endGame(won) {
+  // won      = true if this player won
+  // isRemote = true when triggered by opponent_lost event (winner side)
+  //            skip emitting game_over so we don't loop back to the loser
+  endGame(won, isRemote = false) {
     this.over = true;
     this.destroy();
-    if (window.gameSocket) window.gameSocket.emit('game_over');
+    if (!won && !isRemote && window.gameSocket) {
+      // Only the loser tells the server they lost
+      window.gameSocket.emit('game_over');
+    }
     setTimeout(() => {
       document.getElementById('result-title').textContent = won ? '\uD83C\uDF89 YOU WIN!' : '\uD83D\uDC80 YOU LOSE';
       document.getElementById('result-char').textContent = CHARS[selectedChar];
@@ -457,15 +463,12 @@ class TetrisGame {
   }
 }
 
-// startGame now accepts optional nickname params
-// screen-game must already be visible before calling this
 function startGame(cpuMode = false, p2Char = 1, p1Name = null, p2Name = null) {
   const c1 = document.getElementById('canvas-p1');
   const c2 = document.getElementById('canvas-p2');
   const ch = document.getElementById('canvas-hold');
   const cn = document.getElementById('canvas-next');
 
-  // Use passed nicknames, fall back to lobby input or defaults
   const lobbyNickname = document.getElementById('nickname').value.trim();
   const displayP1 = p1Name || lobbyNickname || 'You';
   const displayP2 = p2Name
